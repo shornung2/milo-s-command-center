@@ -1,68 +1,65 @@
 
-# Prompt 5: Home Page Component
+
+# Prompt 7: Sessions List and Chat
 
 ## Overview
-Replace the placeholder `src/pages/Index.tsx` with a full Home page dashboard that uses `useDashboardStatus` to display system status, quick actions, recent activity, and task overview.
+Replace the placeholder `src/pages/Sessions.tsx` with a two-panel chat interface: a session list on the left and a message thread on the right. Also add two missing API methods to `src/lib/api.ts`.
 
-## File to Modify
+## Files to Modify
 
-### `src/pages/Index.tsx`
-Complete rewrite with the following sections:
+### 1. `src/lib/api.ts`
+Add two new methods to the `api` object:
 
-### 1. Status Cards Row (3-column grid)
-Three `Card` components in a responsive grid (`grid-cols-1 md:grid-cols-3`):
+- **`getSessionHistory(sessionId: string)`** -- `GET /api/sessions/:id/history`
+- **`sendToSession(sessionId: string, message: string)`** -- `POST /api/sessions/:id/messages` with `{ message }` body
 
-- **Gateway Status**: Shows `status` from the hook. Maps to a colored dot (green = "healthy", yellow = "degraded", red = "offline") with a `Wifi` icon. Displays the status text.
-- **System Stats**: Shows placeholder CPU load and memory usage with a `Cpu` icon. (The dashboard API returns generic data; we'll extract what's available or show "--" if absent.)
-- **Uptime**: Formats uptime from the dashboard data (or shows "--") with a `Clock` icon. If a numeric seconds/minutes value is available, format as "X days Y hours".
+### 2. `src/pages/Sessions.tsx`
+Complete rewrite with the following structure:
 
-Each card uses `Skeleton` components while loading.
+#### Left Panel -- Session List (~300px, border-right)
+- "Active Sessions" header
+- Search `Input` at top that filters sessions by name/key client-side
+- Scrollable list of session items fetched via `useQuery` calling `api.getSessions()`
+  - `refetchInterval: 5000` for auto-refresh
+  - Each item shows: session name/key, status badge (active = green, ended = muted), unread count badge (if > 0)
+  - Clicking a session sets it as the selected session
+  - Selected session highlighted with accent background
+- Loading state: skeleton list items
+- Empty state: "No sessions found"
 
-### 2. Quick Action Buttons Row
-A flex row of three `Button` components:
-- **"+ New Task"** -- navigates to `/tasks` (or opens a dialog in the future)
-- **"+ New Note"** -- navigates to `/notes`
-- **"Run Sync Now"** -- calls `api.getDashboard()` / `refetch()` to trigger a refresh
+#### Right Panel -- Chat View (flex-1, remaining width)
+- **No session selected**: Centered placeholder text "Select a session to view messages"
+- **Session selected**:
+  - **Header**: Session key/name + status badge, top border-bottom
+  - **Message thread**: `ScrollArea` filling available height
+    - Fetched via `useQuery` calling `api.getSessionHistory(sessionId)`, enabled only when a session is selected
+    - Messages displayed in alternating layout: user messages right-aligned (primary bg), assistant messages left-aligned (muted bg)
+    - Each message shows timestamp (formatted with `date-fns`)
+    - Auto-scroll to bottom on new messages using a `useEffect` + `useRef` on the scroll container
+  - **Input area**: Fixed at bottom of the panel
+    - `Input` component for text entry
+    - `Send` button (with `Send` lucide icon)
+    - Uses `useMutation` to call `api.sendToSession()`
+    - Button shows `Loader2` spinner + "Sending..." while mutation is pending
+    - On success, invalidate the session history query to show the new message
+    - Enter key submits
 
-Uses `useNavigate` from React Router for navigation.
-
-### 3. Active Work Section (2-column grid)
-
-#### LEFT: Recent Activity
-- `Card` with `ScrollArea` (max-height ~400px)
-- Renders last 20 items from `activity` array
-- Each item shows: timestamp (formatted with `date-fns`), level badge (`info` = default, `warning` = secondary/amber, `error` = destructive), and summary text
-- Items are wrapped in `Collapsible` -- click to expand details
-- The `useDashboardStatus` hook already polls every 5s, providing auto-updates
-
-#### RIGHT: Task Overview
-Three sub-cards stacked vertically:
-- **In Progress**: Filters tasks where `column === 'doing'`, shows count + truncated list
-- **Due Soon**: Filters tasks due within 48 hours (compares `dueDate` to now), shows count
-- **High Priority**: Filters tasks where `priority === 'high'`, shows count
-
-Each sub-card is clickable and navigates to `/tasks` using `useNavigate`.
-
-### 4. Loading State
-- When `loading` is true, render `Skeleton` placeholders matching the layout of each section
-- Three skeleton cards at top, skeleton button row, two skeleton content areas below
-
-### 5. Error State
-- When `error` is truthy, show an error `Card` with `AlertCircle` icon, error message, and a "Retry" `Button` that calls `refetch()`
+#### Responsive Behavior
+- On mobile (`< md`), show only the session list initially; selecting a session switches to the chat view with a back button to return to the list
+- On desktop, both panels shown side by side
 
 ## Components Used (all existing)
 - `Card`, `CardHeader`, `CardTitle`, `CardContent` from `@/components/ui/card`
 - `Button` from `@/components/ui/button`
 - `Badge` from `@/components/ui/badge`
-- `Skeleton` from `@/components/ui/skeleton`
+- `Input` from `@/components/ui/input`
 - `ScrollArea` from `@/components/ui/scroll-area`
-- `Collapsible`, `CollapsibleTrigger`, `CollapsibleContent` from `@/components/ui/collapsible`
-- Lucide icons: `Wifi`, `Cpu`, `Clock`, `Plus`, `RefreshCw`, `AlertCircle`, `ChevronDown`, `Activity`
-- `useDashboardStatus` from `@/hooks/useDashboardStatus`
-- `useNavigate` from `react-router-dom`
-- `formatDistanceToNow` from `date-fns`
+- `Skeleton` from `@/components/ui/skeleton`
+- Lucide icons: `Search`, `Send`, `Loader2`, `MessageSquare`, `ArrowLeft`
+- `useQuery`, `useMutation`, `useQueryClient` from `@tanstack/react-query`
+- `format` from `date-fns`
 
 ## Technical Notes
-- The hook returns loosely typed `Record<string, unknown>` data. The component will safely access fields with optional chaining and fallbacks.
-- No new files needed beyond modifying `Index.tsx`.
-- No new dependencies required.
+- Session list and history queries use the same `request()` helper pattern, returning loosely typed data with safe optional chaining
+- The `useRef` + `scrollIntoView` pattern ensures auto-scroll to the latest message whenever the history data changes
+- Mobile view toggle managed via a simple `boolean` state (`showChat`) rather than routes, keeping it on the same `/sessions` route
