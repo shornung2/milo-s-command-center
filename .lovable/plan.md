@@ -1,72 +1,131 @@
 
-# Prompt 12: Shared Components
+
+# Prompt 13: Tailwind Setup
 
 ## Overview
-Create 10 reusable wrapper components in `src/components/` that provide simplified, domain-specific APIs on top of the existing shadcn/ui primitives.
+Enhance the existing Tailwind configuration and global CSS to align with MILO branding (blues and purples), add custom animations, improve dark mode colors, switch the font to Inter, and add custom scrollbar styling.
 
-## Important Note
-The project already has low-level shadcn/ui components in `src/components/ui/` (badge, button, card, dialog, input, textarea, skeleton). These new components will wrap those primitives with opinionated props and styling for the application's domain needs (e.g., semantic status variants, loading states, error handling patterns). Existing pages already import from `ui/` directly and will continue to work -- these shared components are for convenience in future development.
+## What Already Exists
+- Dark mode is already enabled (`darkMode: ["class"]`)
+- Light and dark CSS variables are defined in `src/index.css`
+- Font is set to Lato
+- Only accordion keyframes exist -- no fade, slide, or spin animations
+- No scrollbar customization
 
-## Files to Create
+## Changes
 
-### 1. `src/components/Badge.tsx`
-- Props: `variant` (`primary` | `success` | `warning` | `error` | `info`), `children`, `className`
-- Maps each variant to a Tailwind color class (e.g., success = green, error = red, warning = amber, info = blue, primary = uses theme primary)
-- Wraps the shadcn `Badge` component from `ui/badge`, applying variant-specific `className`
+### 1. `tailwind.config.ts`
 
-### 2. `src/components/Button.tsx`
-- Props: `variant` (`primary` | `secondary` | `danger`), `size` (`sm` | `md` | `lg`), `disabled`, `loading`, `children`, `className`, plus standard button HTML attributes
-- Maps variant/size to shadcn `Button` variant/size props
-- When `loading` is true: disables the button and prepends a `Loader2` spinning icon
-- Wraps shadcn `Button` from `ui/button`
+**Font**: Change from `Lato` to `Inter`.
 
-### 3. `src/components/Card.tsx`
-- Props: `children`, `className`
-- Simple wrapper around shadcn `Card` from `ui/card` with default rounded + shadow styling
-- Passes through className for customization
+**Colors**: Add a `milo` color scale for branding (blue-purple tones) as a new entry in `extend.colors`:
+```
+milo: {
+  50:  "#eef2ff",
+  100: "#e0e7ff",
+  200: "#c7d2fe",
+  300: "#a5b4fc",
+  400: "#818cf8",
+  500: "#6366f1",
+  600: "#4f46e5",
+  700: "#4338ca",
+  800: "#3730a3",
+  900: "#312e81",
+  950: "#1e1b4b",
+}
+```
 
-### 4. `src/components/Modal.tsx`
-- Props: `open`, `onClose`, `title`, `children`, `footer`
-- Wraps shadcn `Dialog` + `DialogContent` + `DialogHeader` + `DialogTitle` + `DialogFooter`
-- Maps `open` to Dialog's `open` prop, `onClose` to `onOpenChange`
-- Renders `title` in `DialogHeader`, `children` as body, `footer` in `DialogFooter`
+**Keyframes**: Add the following alongside the existing accordion ones:
+- `fade-in`: opacity 0 + translateY(10px) to opacity 1 + translateY(0)
+- `fade-out`: reverse of fade-in
+- `scale-in`: scale(0.95) + opacity 0 to scale(1) + opacity 1
+- `slide-in-right`: translateX(100%) to translateX(0)
+- `slide-out-right`: translateX(0) to translateX(100%)
+- `spin-slow`: rotate(0deg) to rotate(360deg) -- a slow continuous spin
 
-### 5. `src/components/Input.tsx`
-- Props: `label`, `placeholder`, `value`, `onChange`, `error`, `disabled`, `className`, `id`
-- Renders a `Label` (from `ui/label`) above the shadcn `Input` (from `ui/input`)
-- Shows error message below in red text when `error` is provided
-- Adds red border styling when in error state
+**Animations**: Register each keyframe:
+- `fade-in`: 0.3s ease-out
+- `fade-out`: 0.3s ease-out
+- `scale-in`: 0.2s ease-out
+- `slide-in-right`: 0.3s ease-out
+- `slide-out-right`: 0.3s ease-out
+- `spin-slow`: 1.5s linear infinite
 
-### 6. `src/components/Textarea.tsx`
-- Props: same as Input but for multiline content
-- Wraps shadcn `Textarea` from `ui/textarea`
-- Same label + error pattern as Input component
+### 2. `src/index.css`
 
-### 7. `src/components/Loading.tsx`
-- Props: `lines` (number, default 3)
-- Renders N `Skeleton` bars (from `ui/skeleton`) with varying widths for a natural look
-- Animated placeholder for loading states
+**Font import**: Replace Google Fonts link in `index.html` from Lato to Inter (weights 400, 500, 600, 700).
 
-### 8. `src/components/ErrorState.tsx`
-- Props: `title` (default "Something went wrong"), `message`, `onRetry`
-- Centered card with `AlertTriangle` icon, title, message text
-- "Try Again" `Button` that calls `onRetry` (only shown if `onRetry` provided)
+**Light mode CSS variables**: Shift primary toward blue-purple (MILO branding):
+- `--primary`: change from `207 28% 29%` to `245 58% 51%` (indigo-purple)
+- `--primary-foreground`: keep white
+- `--accent`: shift from amber to a complementary purple-blue: `251 91% 65%`
+- `--ring`: match new accent
+- Update sidebar variables to use the new blue-purple tones
 
-### 9. `src/components/Timestamp.tsx`
-- Props: `ts` (ISO date string), `className`
-- Uses `formatDistanceToNow` from `date-fns` with `addSuffix: true` for relative time (e.g., "2 hours ago")
-- Shows full formatted date as a `title` attribute tooltip
-- Renders as a `<time>` element with the `dateTime` attribute set
+**Dark mode CSS variables**: Update to match:
+- `--primary`: lighter indigo for dark backgrounds: `245 58% 65%`
+- `--accent`: lighter purple: `251 91% 72%`
+- `--ring`: match new accent
+- Update sidebar variables for dark mode consistency
 
-### 10. `src/components/StatusBadge.tsx`
-- Props: `status` (`active` | `idle` | `error` | `offline`), `className`
-- Renders a small colored circle (dot) + capitalized status text
-- Color mapping: active = green, idle = yellow, error = red, offline = gray
-- Uses inline flex layout with gap
+**Custom scrollbar styling**: Add in a new `@layer utilities` block:
+```css
+@layer utilities {
+  /* Thin dark scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+}
+```
 
-## Technical Details
-- All components are typed with TypeScript interfaces
-- No changes to existing pages or ui/ components -- these are additive
-- Components use `cn()` from `@/lib/utils` for class merging
-- date-fns is already installed for the Timestamp component
-- Lucide `Loader2` and `AlertTriangle` icons are already available
+**Global scrollbar**: Apply thin scrollbar to body and all scrollable containers:
+```css
+@layer base {
+  * {
+    @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
+```
+
+Add base webkit scrollbar styles outside layers for global coverage.
+
+### 3. `index.html`
+
+Update the Google Fonts link from Lato to Inter:
+```html
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+```
+
+## Files Modified Summary
+| File | Change |
+|---|---|
+| `tailwind.config.ts` | Add `milo` colors, new keyframes/animations, change font to Inter |
+| `src/index.css` | Update color variables for blue-purple branding, add scrollbar styles |
+| `index.html` | Switch font import from Lato to Inter |
+
+## Technical Notes
+- The `milo` color scale uses Tailwind's Indigo palette as a base, giving classes like `text-milo-500`, `bg-milo-100`
+- Existing shadcn components will automatically pick up the new primary/accent colors via CSS variables
+- The `tailwindcss-animate` plugin is already installed and handles the animation utility classes
+- Dark mode toggle (if added later) will work via the existing `class` strategy
+- No existing component files need changes -- they already reference CSS variable-based colors
