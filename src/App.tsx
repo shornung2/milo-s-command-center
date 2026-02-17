@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Tasks from "./pages/Tasks";
 import Sessions from "./pages/Sessions";
@@ -21,19 +22,21 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <DashboardLayout>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/sessions" element={<Sessions />} />
-            <Route path="/notes" element={<Notes />} />
-            <Route path="/agents" element={<Agents />} />
-            <Route path="/cron" element={<CronJobs />} />
-            <Route path="/search" element={<SearchPage />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </DashboardLayout>
+        <ErrorBoundary>
+          <DashboardLayout>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/tasks" element={<Tasks />} />
+              <Route path="/sessions" element={<Sessions />} />
+              <Route path="/notes" element={<Notes />} />
+              <Route path="/agents" element={<Agents />} />
+              <Route path="/cron" element={<CronJobs />} />
+              <Route path="/search" element={<SearchPage />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </DashboardLayout>
+        </ErrorBoundary>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
