@@ -1,65 +1,69 @@
 
 
-# Prompt 7: Sessions List and Chat
+# Prompt 8: Notes Page
 
 ## Overview
-Replace the placeholder `src/pages/Sessions.tsx` with a two-panel chat interface: a session list on the left and a message thread on the right. Also add two missing API methods to `src/lib/api.ts`.
+Replace the placeholder `src/pages/Notes.tsx` with a two-panel notes interface following the same pattern as Sessions: a note list on the left and a note editor on the right, with responsive mobile stacking.
 
-## Files to Modify
+## File to Modify
 
-### 1. `src/lib/api.ts`
-Add two new methods to the `api` object:
-
-- **`getSessionHistory(sessionId: string)`** -- `GET /api/sessions/:id/history`
-- **`sendToSession(sessionId: string, message: string)`** -- `POST /api/sessions/:id/messages` with `{ message }` body
-
-### 2. `src/pages/Sessions.tsx`
+### `src/pages/Notes.tsx`
 Complete rewrite with the following structure:
 
-#### Left Panel -- Session List (~300px, border-right)
-- "Active Sessions" header
-- Search `Input` at top that filters sessions by name/key client-side
-- Scrollable list of session items fetched via `useQuery` calling `api.getSessions()`
-  - `refetchInterval: 5000` for auto-refresh
-  - Each item shows: session name/key, status badge (active = green, ended = muted), unread count badge (if > 0)
-  - Clicking a session sets it as the selected session
-  - Selected session highlighted with accent background
-- Loading state: skeleton list items
-- Empty state: "No sessions found"
+### 1. Header Bar
+- Search `Input` with magnifying glass icon (filters notes via `api.getNotes(search)` with debounced query)
+- "+ New Note" `Button` that calls `api.createNote()` with a default title and selects the new note
 
-#### Right Panel -- Chat View (flex-1, remaining width)
-- **No session selected**: Centered placeholder text "Select a session to view messages"
-- **Session selected**:
-  - **Header**: Session key/name + status badge, top border-bottom
-  - **Message thread**: `ScrollArea` filling available height
-    - Fetched via `useQuery` calling `api.getSessionHistory(sessionId)`, enabled only when a session is selected
-    - Messages displayed in alternating layout: user messages right-aligned (primary bg), assistant messages left-aligned (muted bg)
-    - Each message shows timestamp (formatted with `date-fns`)
-    - Auto-scroll to bottom on new messages using a `useEffect` + `useRef` on the scroll container
-  - **Input area**: Fixed at bottom of the panel
-    - `Input` component for text entry
-    - `Send` button (with `Send` lucide icon)
-    - Uses `useMutation` to call `api.sendToSession()`
-    - Button shows `Loader2` spinner + "Sending..." while mutation is pending
-    - On success, invalidate the session history query to show the new message
-    - Enter key submits
+### 2. Left Panel -- Note List (~300px, border-right)
+- Fetched via `useQuery` calling `api.getNotes(debouncedSearch)`
+- **Pinned notes first** (filtered by `pinned` flag), then remaining notes sorted by `updated_at` descending
+- Each item shows: title (truncated), content snippet (first ~60 chars), timestamp (relative via `formatDistanceToNow`)
+- Pin icon displayed on pinned notes
+- Click to select and load into editor
+- **Right-click context menu** using the existing `ContextMenu` component:
+  - "Toggle Pin" -- calls `api.updateNote()` to flip the `pinned` flag
+  - "Delete" -- calls `api.deleteNote()` with confirmation
+- Selected note highlighted with accent background
+- Loading state: skeleton items
+- Empty state: "No notes yet" placeholder
 
-#### Responsive Behavior
-- On mobile (`< md`), show only the session list initially; selecting a session switches to the chat view with a back button to return to the list
-- On desktop, both panels shown side by side
+### 3. Right Panel -- Note Editor (flex-1)
+- **No note selected**: Centered placeholder "Select a note or create a new one"
+- **Note selected**:
+  - **Title**: Editable `Input` bound to local state
+  - **Content**: `Textarea` (full height, monospace-optional) bound to local state
+  - **Tags**: Row of `Badge` pills with an `Input` to add new tags and X buttons to remove
+  - **Auto-save**: `useEffect` with 1-second debounce that calls `api.updateNote()` when title, content, or tags change (skip on initial load)
+  - **Delete button**: Calls `api.deleteNote()`, clears selection
+  - **Back button** (mobile only): Returns to list view
+
+### 4. Responsive Behavior
+- Mobile (`< md`): Toggle between list and editor using `showEditor` boolean state (same pattern as Sessions)
+- Desktop: Side-by-side panels
+
+### 5. State Management
+- `useQuery` for notes list with search parameter
+- `useMutation` for create, update, delete operations
+- Local state for the editor fields (title, content, tags) synced from selected note
+- Debounced search using a `useEffect` + `setTimeout` pattern (no new deps needed)
+- Debounced auto-save using a similar `useEffect` + `setTimeout` pattern
+- `useQueryClient` to invalidate notes list after mutations
 
 ## Components Used (all existing)
-- `Card`, `CardHeader`, `CardTitle`, `CardContent` from `@/components/ui/card`
+- `Input`, `Textarea` from `@/components/ui/`
 - `Button` from `@/components/ui/button`
 - `Badge` from `@/components/ui/badge`
-- `Input` from `@/components/ui/input`
 - `ScrollArea` from `@/components/ui/scroll-area`
 - `Skeleton` from `@/components/ui/skeleton`
-- Lucide icons: `Search`, `Send`, `Loader2`, `MessageSquare`, `ArrowLeft`
+- `ContextMenu`, `ContextMenuTrigger`, `ContextMenuContent`, `ContextMenuItem` from `@/components/ui/context-menu`
+- Lucide icons: `Search`, `Plus`, `Pin`, `Trash2`, `ArrowLeft`, `FileText`, `X`, `Loader2`
 - `useQuery`, `useMutation`, `useQueryClient` from `@tanstack/react-query`
-- `format` from `date-fns`
+- `formatDistanceToNow` from `date-fns`
 
 ## Technical Notes
-- Session list and history queries use the same `request()` helper pattern, returning loosely typed data with safe optional chaining
-- The `useRef` + `scrollIntoView` pattern ensures auto-scroll to the latest message whenever the history data changes
-- Mobile view toggle managed via a simple `boolean` state (`showChat`) rather than routes, keeping it on the same `/sessions` route
+- Auto-save skips firing on initial load by tracking a `dirty` flag or comparing against the original note data
+- Debounce timeout is cleared on unmount and when note selection changes
+- Delete mutation clears `selectedId` and invalidates the notes query
+- The `NoteUpdate` type in `api.ts` already supports `title`, `content`, and `tags` -- no API changes needed
+- Pin state is stored as a field on the note object; `updateNote` toggles it via `{ pinned: !current }`
+
