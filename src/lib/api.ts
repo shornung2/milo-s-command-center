@@ -139,6 +139,15 @@ export const api = {
     return request(`/api/sessions${qs}`);
   },
 
+  getSessionHistory: (sessionId: string) =>
+    request(`/api/sessions/${sessionId}/history`),
+
+  sendToSession: (sessionId: string, message: string) =>
+    request(`/api/sessions/${sessionId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    }),
+
   getActivity: (limit?: number) => {
     const qs = limit ? `?limit=${limit}` : '';
     return request(`/api/activity${qs}`);
