@@ -1,73 +1,84 @@
 
-
-# Prompt 9: Agents Dashboard
+# Prompt 10: Cron Jobs Manager
 
 ## Overview
-Replace the placeholder `src/pages/Agents.tsx` with a full agent analytics dashboard featuring a responsive card grid, a detail modal with chart and task table, and auto-refreshing data.
+Replace the placeholder `src/pages/CronJobs.tsx` with a full cron job management interface, and add the required API methods to `src/lib/api.ts`.
 
-## File to Modify
+## Files to Modify
 
-### `src/pages/Agents.tsx`
+### 1. `src/lib/api.ts`
+Add cron job types and six new API methods:
+
+**Types:**
+- `CronJobData`: `{ name, scheduleType, expression, payloadType, payload, enabled }`
+- `CronJobUpdate`: Partial version of `CronJobData`
+
+**Methods:**
+- `getCronJobs()` -- GET `/api/cron/jobs`
+- `createCronJob(data)` -- POST `/api/cron/jobs`
+- `updateCronJob(jobId, updates)` -- PATCH `/api/cron/jobs/:id`
+- `deleteCronJob(jobId)` -- DELETE `/api/cron/jobs/:id`
+- `runCronJob(jobId)` -- POST `/api/cron/jobs/:id/run`
+- `getCronRuns(jobId)` -- GET `/api/cron/jobs/:id/runs`
+
+### 2. `src/pages/CronJobs.tsx`
 Complete rewrite with the following structure:
 
-### 1. Data Fetching
-- Define the agent list from the `AgentId` type: `['milo', 'analyst', 'author', 'comms', 'docs', 'researcher']`
-- Use `useQueries` from `@tanstack/react-query` to call `api.getAgentAnalytics(agentId)` for each agent in parallel
-- Set `refetchInterval: 10000` for auto-refresh every 10 seconds
-- Derive loading/error states from the combined queries
+#### Header
+- Page title "Cron Jobs"
+- "+ New Job" `Button` that opens the create/edit modal
 
-### 2. Top Section -- Global Stats
-- A row of summary cards showing:
-  - **Total Tasks**: Sum of all completed + failed tasks across agents
-  - **Global Success Rate**: Weighted average success rate, color-coded (green > 90%, yellow > 70%, red otherwise)
-- Uses `Card` components, displayed while data is available
+#### Jobs Table
+- Fetched via `useQuery` calling `api.getCronJobs()` with `refetchInterval: 10000`
+- Columns: Name, Schedule (type + expression), Status (enabled/disabled toggle badge), Next Run, Last Run, Actions
+- **Actions column** with icon buttons:
+  - **Run Now**: Calls `api.runCronJob(id)` via `useMutation`, shows toast on success
+  - **Edit**: Opens create/edit modal pre-filled with job data
+  - **Delete**: Shows `AlertDialog` confirmation, then calls `api.deleteCronJob(id)`
+  - **View Runs**: Opens the run history modal
+- Loading state: Skeleton rows
+- Empty state: "No cron jobs configured" placeholder
 
-### 3. Agent Cards Grid
-- Responsive grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
-- Each card (`Card` component) shows:
-  - **Agent name** as `CardTitle` (capitalized)
-  - **Status badge**: `idle` (muted), `running` (green/default), `error` (destructive)
-  - **Success rate**: Large text, color-coded with the same green/yellow/red thresholds
-  - **Stats list**: Tasks completed, failures, average duration (formatted as minutes), last task time (relative via `formatDistanceToNow`)
-  - **Error patterns**: If present, a small list of pattern + count (e.g., "timeout: 3x")
-  - Card is clickable -- sets the selected agent to open the detail modal
-- Loading state: Grid of `Skeleton` cards
-- Error state: Error card with retry
+#### Create/Edit Job Modal (`Dialog`)
+- Controlled by state: `editingJob` (null for create, job object for edit)
+- Form fields:
+  - **Name**: `Input`
+  - **Schedule Type**: `Select` dropdown with options: `cron`, `at`, `every`
+  - **Expression**: `Input` with contextual help text (e.g., "*/5 * * * *" for cron)
+  - **Payload Type**: `Select` dropdown with options: `agentTurn`, `systemEvent`
+  - **Payload**: `Textarea` for message or task text
+  - **Enabled**: `Checkbox`
+- **Save**: Calls `createCronJob()` or `updateCronJob()` depending on mode, invalidates query
+- **Cancel**: Closes modal, resets form
 
-### 4. Detail Modal (Dialog)
-- Opens when an agent card is clicked, using the `Dialog` component
-- **Header**: Agent name + status badge
-- **Chart**: Task history over time using `recharts` (`BarChart` or `LineChart`)
-  - X-axis: dates, Y-axis: count
-  - Two series: successes (green) and failures (red)
-  - Uses `ResponsiveContainer`, `CartesianGrid`, `XAxis`, `YAxis`, `Tooltip`, `Legend`
-- **Task Table**: Last 10 tasks displayed in a `Table` with columns:
-  - Task ID, Status (badge), Duration (formatted), Date (formatted)
-- **Export button**: Downloads the agent's analytics data as a JSON file using `URL.createObjectURL` + `Blob`
-- **Close button**: Closes the dialog
+#### View Runs Modal (`Dialog`)
+- Shows last 20 runs fetched via `useQuery` calling `api.getCronRuns(jobId)`, enabled only when modal is open
+- Table columns: Execution ID, Triggered At, Completed At, Status (badge), Duration
+- Click a row to expand and show full output in a collapsible section or nested detail
+- Close button
 
-### 5. Helper Functions
-- `getSuccessRateColor(rate: number)`: Returns tailwind text color class based on thresholds
-- `formatDuration(ms: number)`: Converts milliseconds to "Xm Ys" format
-- `exportAsJson(data, filename)`: Creates and triggers a JSON file download
+#### State Management
+- `useQuery` for jobs list (auto-refresh 10s)
+- `useQuery` for run history (conditional, when runs modal is open)
+- `useMutation` for create, update, delete, and run-now operations
+- Local state for modal visibility, form fields, selected job for editing/viewing runs
 
 ## Components Used (all existing)
-- `Card`, `CardHeader`, `CardTitle`, `CardContent` from `@/components/ui/card`
-- `Badge` from `@/components/ui/badge`
-- `Button` from `@/components/ui/button`
-- `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` from `@/components/ui/dialog`
-- `Table`, `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell` from `@/components/ui/table`
-- `Skeleton` from `@/components/ui/skeleton`
-- `ScrollArea` from `@/components/ui/scroll-area`
-- Recharts: `ResponsiveContainer`, `BarChart`, `Bar`, `XAxis`, `YAxis`, `CartesianGrid`, `Tooltip`, `Legend`
-- Lucide icons: `Bot`, `Download`, `Activity`, `AlertTriangle`, `Loader2`
-- `useQueries`, `useQueryClient` from `@tanstack/react-query`
-- `formatDistanceToNow`, `format` from `date-fns`
+- `Table`, `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`
+- `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogFooter`
+- `AlertDialog`, `AlertDialogAction`, `AlertDialogCancel`, `AlertDialogContent`, `AlertDialogDescription`, `AlertDialogFooter`, `AlertDialogHeader`, `AlertDialogTitle`, `AlertDialogTrigger`
+- `Button`, `Input`, `Textarea`, `Checkbox`, `Badge`
+- `Select`, `SelectContent`, `SelectItem`, `SelectTrigger`, `SelectValue`
+- `Skeleton`, `ScrollArea`
+- `Collapsible`, `CollapsibleContent`, `CollapsibleTrigger` (for run output expansion)
+- Lucide icons: `Plus`, `Play`, `Pencil`, `Trash2`, `History`, `Loader2`, `Clock`, `ChevronDown`
+- `useQuery`, `useMutation`, `useQueryClient` from `@tanstack/react-query`
+- `format`, `formatDistanceToNow` from `date-fns`
+- `toast` from `sonner`
 
 ## Technical Notes
-- `useQueries` maps over the agent ID array, producing one query per agent -- all run in parallel and refresh independently
-- The API returns loosely typed data; the component uses safe optional chaining and sensible fallbacks throughout
-- The recharts library is already installed as a dependency
-- No API changes needed -- `getAgentAnalytics(agentId)` already exists in `api.ts`
-- The JSON export creates an object URL, triggers a click on a temporary anchor element, then revokes the URL
-
+- The create/edit modal shares one component with form state reset when switching between create and edit modes
+- Delete uses `AlertDialog` for confirmation before calling the API
+- Run history query uses `enabled: !!viewingRunsJobId` to only fetch when the modal is open
+- Schedule help text changes dynamically based on selected schedule type
+- Duration in runs table is computed from triggered/completed timestamps if not provided directly
