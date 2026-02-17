@@ -36,6 +36,17 @@ export interface NoteUpdate {
   tags?: string[];
 }
 
+export interface CronJobData {
+  name: string;
+  scheduleType: 'cron' | 'at' | 'every';
+  expression: string;
+  payloadType: 'agentTurn' | 'systemEvent';
+  payload: string;
+  enabled: boolean;
+}
+
+export type CronJobUpdate = Partial<CronJobData>;
+
 export type ApiSuccess<T = Record<string, unknown>> = { ok: true } & T;
 export type ApiError = { ok: false; error: string };
 export type ApiResponse<T = Record<string, unknown>> = ApiSuccess<T> | ApiError;
@@ -152,4 +163,22 @@ export const api = {
     const qs = limit ? `?limit=${limit}` : '';
     return request(`/api/activity${qs}`);
   },
+
+  // Cron Jobs
+  getCronJobs: () => request('/api/cron/jobs'),
+
+  createCronJob: (data: CronJobData) =>
+    request('/api/cron/jobs', { method: 'POST', body: JSON.stringify(data) }),
+
+  updateCronJob: (jobId: string, updates: CronJobUpdate) =>
+    request(`/api/cron/jobs/${jobId}`, { method: 'PATCH', body: JSON.stringify(updates) }),
+
+  deleteCronJob: (jobId: string) =>
+    request(`/api/cron/jobs/${jobId}`, { method: 'DELETE' }),
+
+  runCronJob: (jobId: string) =>
+    request(`/api/cron/jobs/${jobId}/run`, { method: 'POST' }),
+
+  getCronRuns: (jobId: string) =>
+    request(`/api/cron/jobs/${jobId}/runs`),
 };
