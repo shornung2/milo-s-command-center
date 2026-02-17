@@ -1,84 +1,61 @@
 
-# Prompt 10: Cron Jobs Manager
+
+# Prompt 11: Search Page
 
 ## Overview
-Replace the placeholder `src/pages/CronJobs.tsx` with a full cron job management interface, and add the required API methods to `src/lib/api.ts`.
+Replace the placeholder `src/pages/Search.tsx` with a cross-source search interface featuring a large search input, source filters, and a results list with navigation.
 
-## Files to Modify
+## File to Modify
 
-### 1. `src/lib/api.ts`
-Add cron job types and six new API methods:
+### `src/pages/Search.tsx`
+Complete rewrite:
 
-**Types:**
-- `CronJobData`: `{ name, scheduleType, expression, payloadType, payload, enabled }`
-- `CronJobUpdate`: Partial version of `CronJobData`
+### 1. Search Input
+- Large, centered `Input` with `Search` icon
+- Placeholder: "Search notes, tasks, sessions..."
+- 300ms debounced search using `useEffect` + `setTimeout`
 
-**Methods:**
-- `getCronJobs()` -- GET `/api/cron/jobs`
-- `createCronJob(data)` -- POST `/api/cron/jobs`
-- `updateCronJob(jobId, updates)` -- PATCH `/api/cron/jobs/:id`
-- `deleteCronJob(jobId)` -- DELETE `/api/cron/jobs/:id`
-- `runCronJob(jobId)` -- POST `/api/cron/jobs/:id/run`
-- `getCronRuns(jobId)` -- GET `/api/cron/jobs/:id/runs`
+### 2. Source Filters
+- Row of `Checkbox` + label pairs for: Notes, Tasks, Sessions
+- All checked by default
+- Changing filters re-triggers search
+- At least one source must be selected
 
-### 2. `src/pages/CronJobs.tsx`
-Complete rewrite with the following structure:
+### 3. Results Section
+- Heading: "X results for 'query'"
+- Each result rendered as a clickable card/row showing:
+  - **Source badge** (`Badge` with variant per source type)
+  - **Title** (bold)
+  - **Snippet/preview** (truncated text, muted color)
+  - **Relevance score** (small percentage or dot indicator, if present in data)
+- Click navigates to the relevant page using `useNavigate`:
+  - notes -> `/notes` (with query param or state for the note ID)
+  - tasks -> `/tasks`
+  - sessions -> `/sessions`
+- Loading state: `Skeleton` result cards
+- Empty state (no query): Centered "Start typing to search" with search icon
+- No results state: "No results for 'query'"
 
-#### Header
-- Page title "Cron Jobs"
-- "+ New Job" `Button` that opens the create/edit modal
+### 4. Data Fetching
+- `useQuery` calling `api.search(debouncedQuery, selectedSources, 50)`
+- Enabled only when `debouncedQuery.length > 0` and at least one source selected
+- Query key includes the debounced query and selected sources
 
-#### Jobs Table
-- Fetched via `useQuery` calling `api.getCronJobs()` with `refetchInterval: 10000`
-- Columns: Name, Schedule (type + expression), Status (enabled/disabled toggle badge), Next Run, Last Run, Actions
-- **Actions column** with icon buttons:
-  - **Run Now**: Calls `api.runCronJob(id)` via `useMutation`, shows toast on success
-  - **Edit**: Opens create/edit modal pre-filled with job data
-  - **Delete**: Shows `AlertDialog` confirmation, then calls `api.deleteCronJob(id)`
-  - **View Runs**: Opens the run history modal
-- Loading state: Skeleton rows
-- Empty state: "No cron jobs configured" placeholder
+### 5. Components Used (all existing)
+- `Input` from `@/components/ui/input`
+- `Checkbox` from `@/components/ui/checkbox`
+- `Badge` from `@/components/ui/badge`
+- `Card` from `@/components/ui/card`
+- `Skeleton` from `@/components/ui/skeleton`
+- `Label` from `@/components/ui/label`
+- Lucide icons: `Search`, `FileText`, `CheckSquare`, `MessageSquare`
+- `useQuery` from `@tanstack/react-query`
+- `useNavigate` from `react-router-dom`
 
-#### Create/Edit Job Modal (`Dialog`)
-- Controlled by state: `editingJob` (null for create, job object for edit)
-- Form fields:
-  - **Name**: `Input`
-  - **Schedule Type**: `Select` dropdown with options: `cron`, `at`, `every`
-  - **Expression**: `Input` with contextual help text (e.g., "*/5 * * * *" for cron)
-  - **Payload Type**: `Select` dropdown with options: `agentTurn`, `systemEvent`
-  - **Payload**: `Textarea` for message or task text
-  - **Enabled**: `Checkbox`
-- **Save**: Calls `createCronJob()` or `updateCronJob()` depending on mode, invalidates query
-- **Cancel**: Closes modal, resets form
+## Technical Details
+- No API changes needed -- `api.search(query, sources, limit)` already exists in `api.ts`
+- Source filter state is a `Record<string, boolean>` derived from the three source names
+- The debounce clears its timeout on unmount and when the raw query changes
+- Badge color per source: notes = default, tasks = secondary, sessions = outline
+- Navigation on click uses `navigate('/notes')` etc. -- the destination pages can handle deep-linking later
 
-#### View Runs Modal (`Dialog`)
-- Shows last 20 runs fetched via `useQuery` calling `api.getCronRuns(jobId)`, enabled only when modal is open
-- Table columns: Execution ID, Triggered At, Completed At, Status (badge), Duration
-- Click a row to expand and show full output in a collapsible section or nested detail
-- Close button
-
-#### State Management
-- `useQuery` for jobs list (auto-refresh 10s)
-- `useQuery` for run history (conditional, when runs modal is open)
-- `useMutation` for create, update, delete, and run-now operations
-- Local state for modal visibility, form fields, selected job for editing/viewing runs
-
-## Components Used (all existing)
-- `Table`, `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`
-- `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogFooter`
-- `AlertDialog`, `AlertDialogAction`, `AlertDialogCancel`, `AlertDialogContent`, `AlertDialogDescription`, `AlertDialogFooter`, `AlertDialogHeader`, `AlertDialogTitle`, `AlertDialogTrigger`
-- `Button`, `Input`, `Textarea`, `Checkbox`, `Badge`
-- `Select`, `SelectContent`, `SelectItem`, `SelectTrigger`, `SelectValue`
-- `Skeleton`, `ScrollArea`
-- `Collapsible`, `CollapsibleContent`, `CollapsibleTrigger` (for run output expansion)
-- Lucide icons: `Plus`, `Play`, `Pencil`, `Trash2`, `History`, `Loader2`, `Clock`, `ChevronDown`
-- `useQuery`, `useMutation`, `useQueryClient` from `@tanstack/react-query`
-- `format`, `formatDistanceToNow` from `date-fns`
-- `toast` from `sonner`
-
-## Technical Notes
-- The create/edit modal shares one component with form state reset when switching between create and edit modes
-- Delete uses `AlertDialog` for confirmation before calling the API
-- Run history query uses `enabled: !!viewingRunsJobId` to only fetch when the modal is open
-- Schedule help text changes dynamically based on selected schedule type
-- Duration in runs table is computed from triggered/completed timestamps if not provided directly
