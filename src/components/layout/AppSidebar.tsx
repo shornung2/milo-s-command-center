@@ -20,6 +20,8 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
+import { useConnectionStatus } from "@/hooks/useConnectionStatus";
+import { cn } from "@/lib/utils";
 
 const navItems = [
   { title: "Home", url: "/", icon: Home },
@@ -31,16 +33,25 @@ const navItems = [
   { title: "Search", url: "/search", icon: Search },
 ];
 
+const sidebarStatusConfig = {
+  connected: { bg: "bg-emerald-500/20", text: "text-emerald-400", border: "border-emerald-500/30", dot: "bg-emerald-400", label: "Online" },
+  disconnected: { bg: "bg-red-500/20", text: "text-red-400", border: "border-red-500/30", dot: "bg-red-400", label: "Offline" },
+  checking: { bg: "bg-amber-500/20", text: "text-amber-400", border: "border-amber-500/30", dot: "bg-amber-400 animate-pulse", label: "Checking" },
+} as const;
+
 export function AppSidebar() {
+  const { status } = useConnectionStatus();
+  const sc = sidebarStatusConfig[status];
+
   return (
     <Sidebar className="border-r-0">
       <div className="flex items-center gap-3 px-4 py-5">
         <span className="text-xl font-bold tracking-wider text-sidebar-accent-foreground">
           MILO
         </span>
-        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0">
-          <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          Online
+        <Badge className={cn(sc.bg, sc.text, sc.border, "text-[10px] px-1.5 py-0")}>
+          <span className={cn("mr-1 inline-block h-1.5 w-1.5 rounded-full", sc.dot)} />
+          {sc.label}
         </Badge>
       </div>
 

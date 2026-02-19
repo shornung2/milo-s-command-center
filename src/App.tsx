@@ -22,21 +22,19 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <ErrorBoundary>
-          <DashboardLayout>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/tasks" element={<Tasks />} />
-              <Route path="/sessions" element={<Sessions />} />
-              <Route path="/notes" element={<Notes />} />
-              <Route path="/agents" element={<Agents />} />
-              <Route path="/cron" element={<CronJobs />} />
-              <Route path="/search" element={<SearchPage />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </DashboardLayout>
-        </ErrorBoundary>
+        <DashboardLayout>
+          <Routes>
+            <Route path="/" element={<ErrorBoundary><Index /></ErrorBoundary>} />
+            <Route path="/tasks" element={<ErrorBoundary><Tasks /></ErrorBoundary>} />
+            <Route path="/sessions" element={<ErrorBoundary><Sessions /></ErrorBoundary>} />
+            <Route path="/notes" element={<ErrorBoundary><Notes /></ErrorBoundary>} />
+            <Route path="/agents" element={<ErrorBoundary><Agents /></ErrorBoundary>} />
+            <Route path="/cron" element={<ErrorBoundary><CronJobs /></ErrorBoundary>} />
+            <Route path="/search" element={<ErrorBoundary><SearchPage /></ErrorBoundary>} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </DashboardLayout>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

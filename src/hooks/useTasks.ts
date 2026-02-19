@@ -1,4 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import type { Task, TaskColumn, TaskPriority } from "@/types/task";
 import type { AgentId } from "@/lib/api";
 
@@ -14,37 +16,64 @@ const MOCK_TASKS: Task[] = [
 ];
 
 export function useTasks() {
-  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
+  const queryClient = useQueryClient();
+  const [localTasks, setLocalTasks] = useState<Task[]>(MOCK_TASKS);
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: async () => {
+      const res = await api.getTasks();
+      if (!res.ok) throw new Error((res as { error: string }).error);
+      return res;
+    },
+    retry: 2,
+    staleTime: 15_000,
+  });
+
+  const isOffline = isError || !data;
+
+  // Sync API data into local state when available
+  useEffect(() => {
+    if (data?.ok && Array.isArray((data as any).tasks)) {
+      setLocalTasks((data as any).tasks);
+    }
+  }, [data]);
+
+  const tasks = localTasks;
 
   const moveTask = useCallback((taskId: string, newColumn: TaskColumn) => {
-    setTasks((prev) =>
+    setLocalTasks((prev) =>
       prev.map((t) =>
         t.id === taskId ? { ...t, column: newColumn, updatedAt: new Date().toISOString() } : t
       )
     );
+    api.updateTask(taskId, { column: newColumn }).catch(() => {});
   }, []);
 
-  const createTask = useCallback((data: { title: string; description?: string; priority: TaskPriority; column: TaskColumn; assignedTo?: AgentId }) => {
+  const createTask = useCallback((taskData: { title: string; description?: string; priority: TaskPriority; column: TaskColumn; assignedTo?: AgentId }) => {
     const task: Task = {
       id: crypto.randomUUID(),
-      ...data,
+      ...taskData,
       createdAt: new Date().toISOString(),
     };
-    setTasks((prev) => [...prev, task]);
+    setLocalTasks((prev) => [...prev, task]);
+    api.createTask(taskData).then(() => queryClient.invalidateQueries({ queryKey: ["tasks"] })).catch(() => {});
     return task;
-  }, []);
+  }, [queryClient]);
 
   const updateTask = useCallback((taskId: string, updates: Partial<Task>) => {
-    setTasks((prev) =>
+    setLocalTasks((prev) =>
       prev.map((t) =>
         t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
       )
     );
+    api.updateTask(taskId, updates).catch(() => {});
   }, []);
 
   const deleteTask = useCallback((taskId: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    setLocalTasks((prev) => prev.filter((t) => t.id !== taskId));
+    api.updateTask(taskId, { status: "deleted" }).catch(() => {});
   }, []);
 
-  return { tasks, moveTask, createTask, updateTask, deleteTask };
+  return { tasks, moveTask, createTask, updateTask, deleteTask, isLoading, isOffline, refetch };
 }
