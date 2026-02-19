@@ -83,8 +83,7 @@ function LoadingSkeleton() {
 
 const Index = () => {
   const navigate = useNavigate();
-  const { loading, error, status, kanban, tasks, notes, activity, refetch } =
-    useDashboardStatus();
+  const { loading, error, data, refetch } = useDashboardStatus();
 
   if (loading) return <LoadingSkeleton />;
 
@@ -102,22 +101,19 @@ const Index = () => {
     );
   }
 
-  // Safe access helpers
-  const kanbanData = kanban as Record<string, unknown> | null;
-  const taskList = (tasks ?? []) as Record<string, unknown>[];
-  const activityList = ((activity ?? []) as Record<string, unknown>[]).slice(
-    0,
-    20
-  );
+  const gateway = data?.status?.gateway ?? "unknown";
+  const cpu = data?.status?.cpu ?? "--";
+  const mem = data?.status?.mem ?? "--";
+  const uptimeSeconds = data?.status?.uptime_seconds;
+  const taskStats = data?.tasks ?? { total: 0, by_column: {} };
+  const noteStats = data?.notes ?? { total: 0, pinned: 0 };
+  const kanbanColumns = data?.kanban?.columns ?? {};
+  const activityList = (data?.activity ?? []).slice(0, 20);
 
-  const doingTasks = taskList.filter((t) => t.column === "doing");
-  const highPriority = taskList.filter((t) => t.priority === "high");
-  const dueSoon = taskList.filter((t) => {
-    const due = t.dueDate as string | undefined;
-    if (!due) return false;
-    const diff = new Date(due).getTime() - Date.now();
-    return diff > 0 && diff < 48 * 60 * 60 * 1000;
-  });
+  // Flatten kanban columns into task items for overview
+  const doingTasks = (kanbanColumns["doing"] ?? []) as Record<string, unknown>[];
+  const allKanbanTasks = Object.values(kanbanColumns).flat() as Record<string, unknown>[];
+  const highPriority = allKanbanTasks.filter((t) => t.priority === "high");
 
   return (
     <div className="space-y-6">
@@ -132,10 +128,10 @@ const Index = () => {
           </CardHeader>
           <CardContent className="flex items-center gap-2">
             <span
-              className={`inline-block h-2.5 w-2.5 rounded-full ${statusColor(status)}`}
+              className={`inline-block h-2.5 w-2.5 rounded-full ${statusColor(gateway)}`}
             />
             <span className="text-xl font-semibold capitalize">
-              {status ?? "unknown"}
+              {gateway}
             </span>
           </CardContent>
         </Card>
@@ -149,13 +145,13 @@ const Index = () => {
             <p>
               CPU:{" "}
               <span className="font-medium">
-                {(kanbanData?.cpuLoad as string) ?? "--"}
+                {cpu}
               </span>
             </p>
             <p>
               Memory:{" "}
               <span className="font-medium">
-                {(kanbanData?.memoryUsage as string) ?? "--"}
+                {mem}
               </span>
             </p>
           </CardContent>
@@ -168,7 +164,7 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <span className="text-xl font-semibold">
-              {formatUptime(kanbanData?.uptime)}
+              {formatUptime(uptimeSeconds)}
             </span>
           </CardContent>
         </Card>
@@ -206,11 +202,10 @@ const Index = () => {
               )}
               <div className="space-y-1">
                 {activityList.map((item, i) => {
-                  const ts = item.timestamp as string | undefined;
-                  const level = (item.level as string) ?? "info";
-                  const summary =
-                    (item.summary as string) ?? (item.message as string) ?? "";
-                  const details = item.details as string | undefined;
+                  const ts = item.ts;
+                  const level = item.level ?? "info";
+                  const summary = item.summary ?? "";
+                  const details = item.details;
 
                   return (
                     <Collapsible key={i}>
@@ -260,7 +255,11 @@ const Index = () => {
               items: doingTasks,
               color: "text-blue-500",
             },
-            { label: "Due Soon", items: dueSoon, color: "text-amber-500" },
+            {
+              label: `Total Tasks: ${taskStats.total}`,
+              items: allKanbanTasks.slice(0, 5),
+              color: "text-amber-500",
+            },
             {
               label: "High Priority",
               items: highPriority,
