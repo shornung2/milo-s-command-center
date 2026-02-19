@@ -2,7 +2,7 @@
 // Communicates with the Openclaw backend
 
 const BASE_URL = import.meta.env.VITE_DASHBOARD_API_URL || 'https://medium-rivers-horizon-testimony.trycloudflare.com';
-const TOKEN = import.meta.env.VITE_DASHBOARD_TOKEN || '';
+const TOKEN = import.meta.env.VITE_DASHBOARD_TOKEN || 'milo-dashboard-2026';
 
 // ── Types ──────────────────────────────────────────────
 
