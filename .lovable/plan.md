@@ -1,46 +1,70 @@
 
 
-# Connect Dashboard to OpenClaw Backend
+# Connection Status Indicator and Enhanced Error/Loading States
 
-## What's Needed
+## Overview
 
-The app is already fully wired up with proper API calls, loading states, error handling, and retry logic on every page. The **only real blocker** is that the API URL defaults to `http://localhost:3000`, which is unreachable from the cloud preview.
+Add a live connection status indicator to the dashboard header, wrap each route in its own ErrorBoundary, and ensure the Tasks page has proper loading and error states.
 
 ## Changes
 
-### 1. Update `src/lib/api.ts` (1 line change)
+### 1. New Hook: `src/hooks/useConnectionStatus.ts`
 
-Change the default `BASE_URL` from `http://localhost:3000` to `http://187.77.27.177:3002`:
+A lightweight hook that pings the backend every 10 seconds to determine connectivity:
+- Calls `api.getDashboard()` (or a lightweight endpoint) on an interval
+- Exposes `status: "connected" | "disconnected" | "checking"` and `lastChecked: Date | null`
+- Uses React Query with a dedicated query key so it doesn't interfere with other data fetching
 
-```ts
-const BASE_URL = import.meta.env.VITE_DASHBOARD_API_URL || 'http://187.77.27.177:3002';
+### 2. Update `src/components/layout/DashboardLayout.tsx`
+
+Add a connection status indicator to the header bar (next to the page title):
+- Small colored dot + text: green "Connected", red "Disconnected", gray "Checking..."
+- Uses the `useConnectionStatus` hook
+- Subtle -- does not take up much space, just a badge in the header
+
+### 3. Update `src/components/layout/AppSidebar.tsx`
+
+Replace the hardcoded "Online" badge with a live badge driven by `useConnectionStatus`:
+- Green "Online" when connected
+- Red "Offline" when disconnected
+- Amber "Checking" during initial check
+
+### 4. Update `src/App.tsx`
+
+Wrap each route element in its own `ErrorBoundary` so a crash on one page doesn't take down the whole app:
+```
+<Route path="/tasks" element={<ErrorBoundary><Tasks /></ErrorBoundary>} />
 ```
 
-This is a public API URL so it's safe to hardcode as a fallback. The env var override still works if set.
+### 5. Update `src/hooks/useTasks.ts`
 
-### What's Already in Place (no changes needed)
+Wire up to the real API with mock data fallback:
+- Use `useQuery` to fetch from `api.getTasks()`
+- If the API call succeeds, use real data; if it fails, fall back to mock data
+- Use `useMutation` for create, update, delete, and move operations
+- Expose `isLoading` and `error` alongside the existing return values
 
-| Requirement | Status |
-|---|---|
-| Loading states for data fetching | Already implemented on all pages (skeletons) |
-| Error handling for failed API calls | Already implemented (`ApiResponse` type, error UI on every page) |
-| Retry logic | Already configured via React Query (`retry: 3` on dashboard, default retry on others) |
-| User feedback for connection states | Already shows error cards with "Retry" buttons |
-| Dashboard endpoint `/api/dashboard` | Already wired in `useDashboardStatus` hook |
-| Tasks endpoint `/api/tasks` | Already wired in `api.getTasks/createTask/updateTask` |
-| Notes endpoint `/api/notes` | Already wired in Notes page with React Query |
-| Activity endpoint `/api/activity` | Already wired in `api.getActivity` |
-| Agent analytics `/api/agents` | Already wired per-agent in Agents page |
-| Search endpoint `/api/search` | Already wired in Search page |
-| TypeScript types for API responses | Already defined (`ApiResponse`, `TaskData`, `NoteData`, etc.) |
+### 6. Update `src/pages/Tasks.tsx`
 
-### 2. Potential CORS Issue
-
-The backend at `http://187.77.27.177:3002` must allow requests from the Lovable preview origin. If it doesn't, requests will still fail. This is a backend configuration -- not something fixable in the frontend.
+Add loading skeleton and error state:
+- Show a 4-column skeleton grid while loading (matching column layout)
+- Show an error card with retry button if API fails and mock fallback is in use
+- A small "Using offline data" badge when running on mock data
 
 ## Files Summary
 
 | File | Action |
 |---|---|
-| `src/lib/api.ts` | Edit line 4 -- update default URL to `http://187.77.27.177:3002` |
+| `src/hooks/useConnectionStatus.ts` | Create -- connection health hook |
+| `src/components/layout/DashboardLayout.tsx` | Update -- add connection indicator to header |
+| `src/components/layout/AppSidebar.tsx` | Update -- live Online/Offline badge |
+| `src/App.tsx` | Update -- per-route ErrorBoundary wrapping |
+| `src/hooks/useTasks.ts` | Update -- add React Query with mock fallback |
+| `src/pages/Tasks.tsx` | Update -- add loading skeleton and error state |
 
+## Technical Notes
+
+- The connection check reuses the existing `api.getDashboard()` call so no new endpoint is needed
+- React Query's `refetchInterval` handles the polling automatically
+- The mock fallback in useTasks ensures the Kanban board always works even without a backend
+- Per-route ErrorBoundaries prevent one crashing page from taking down the whole dashboard
