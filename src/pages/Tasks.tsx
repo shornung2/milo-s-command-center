@@ -5,10 +5,27 @@ import { TaskModal } from "@/components/tasks/TaskModal";
 import { COLUMNS } from "@/types/task";
 import type { Task } from "@/types/task";
 import { Button } from "@/components/Button";
-import { Plus } from "lucide-react";
+import { Plus, WifiOff, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+
+function TasksSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="flex flex-col gap-3">
+          <Skeleton className="h-8 w-full rounded-lg" />
+          <Skeleton className="h-24 w-full rounded-lg" />
+          <Skeleton className="h-24 w-full rounded-lg" />
+          <Skeleton className="h-16 w-full rounded-lg" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const Tasks = () => {
-  const { tasks, moveTask, createTask, updateTask, deleteTask } = useTasks();
+  const { tasks, moveTask, createTask, updateTask, deleteTask, isLoading, isOffline, refetch } = useTasks();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
@@ -25,29 +42,49 @@ const Tasks = () => {
   return (
     <div className="flex flex-col gap-4 h-full">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Tasks</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Drag cards between columns or click to edit.</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Tasks</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Drag cards between columns or click to edit.</p>
+          </div>
+          {isOffline && (
+            <Badge variant="secondary" className="gap-1.5">
+              <WifiOff className="h-3 w-3" />
+              Offline data
+            </Badge>
+          )}
         </div>
-        <Button onClick={openNew}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          New Task
-        </Button>
+        <div className="flex items-center gap-2">
+          {isOffline && (
+            <Button onClick={() => refetch()} variant="secondary" size="sm">
+              <RefreshCw className="h-3.5 w-3.5 mr-1" />
+              Retry
+            </Button>
+          )}
+          <Button onClick={openNew}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            New Task
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 overflow-x-auto pb-2">
-        {COLUMNS.map((col) => (
-          <KanbanColumn
-            key={col.id}
-            id={col.id}
-            title={col.title}
-            colorClass={col.color}
-            tasks={tasks.filter((t) => t.column === col.id)}
-            onDrop={moveTask}
-            onTaskClick={openEdit}
-          />
-        ))}
-      </div>
+      {isLoading ? (
+        <TasksSkeleton />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 overflow-x-auto pb-2">
+          {COLUMNS.map((col) => (
+            <KanbanColumn
+              key={col.id}
+              id={col.id}
+              title={col.title}
+              colorClass={col.color}
+              tasks={tasks.filter((t) => t.column === col.id)}
+              onDrop={moveTask}
+              onTaskClick={openEdit}
+            />
+          ))}
+        </div>
+      )}
 
       <TaskModal
         open={modalOpen}
