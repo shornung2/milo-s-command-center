@@ -1,7 +1,7 @@
 // Milo Dashboard API Client
 // Communicates with the Openclaw backend
 
-const BASE_URL = import.meta.env.VITE_DASHBOARD_API_URL || 'https://currently-occasionally-kennedy-scotia.trycloudflare.com';
+const BASE_URL = import.meta.env.VITE_DASHBOARD_API_URL || 'https://peripheral-caroline-proceeding-samuel.trycloudflare.com';
 const TOKEN = import.meta.env.VITE_DASHBOARD_TOKEN || '';
 
 // ── Types ──────────────────────────────────────────────
